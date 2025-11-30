@@ -1,0 +1,5 @@
+{
+  "name": "EICR Form Generator",
+  "description": "Upload Work Order CSVs, search for jobs, and auto-populate EICR Rectification forms for PDF export.",
+  "requestFramePermissions": []
+}
