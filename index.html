@@ -150,28 +150,58 @@
         const parseDescription = (fullDescription) => {
             if (!fullDescription) return { edn: '', db: '', desc: '' };
 
-            const parts = fullDescription.split(' - ');
+            // 1. Identify and extract EDN
+            // Split by ' - ' which is the common delimiter in the new format
+            const rawParts = fullDescription.split(' - ');
+            const nonEdnParts = [];
             let edn = '';
-            let remainder = fullDescription;
 
-            if (parts.length > 1) {
-                const lastPart = parts[parts.length - 1];
-                if (lastPart.trim().startsWith('EDN')) {
-                    edn = lastPart.trim();
-                    remainder = parts.slice(0, parts.length - 1).join(' - ');
+            // Extract EDN part (starts with EDN)
+            rawParts.forEach(part => {
+                if (part.trim().startsWith('EDN')) {
+                    edn = part.trim();
+                } else {
+                    nonEdnParts.push(part);
                 }
-            }
+            });
 
-            const firstSpaceIndex = remainder.indexOf(' ');
+            // 2. Determine DB and Description from the remainder
             let db = '';
-            let desc = remainder;
+            let desc = '';
 
-            if (firstSpaceIndex > -1) {
-                db = remainder.substring(0, firstSpaceIndex).trim();
-                desc = remainder.substring(firstSpaceIndex).trim();
+            if (nonEdnParts.length === 0) {
+                 // Only EDN existed or empty
             } else {
-                db = remainder;
-                desc = '';
+                const firstPart = nonEdnParts[0].trim();
+                // Check if the first part contains spaces.
+                // If it does, it's likely the Old Format where DB and Desc were space-separated,
+                // and the ' - ' split might have just broken up the description.
+                const hasSpaces = firstPart.indexOf(' ') > -1;
+
+                if (hasSpaces) {
+                    // Scenario: "DB-1-9-4 BELOW DB TRUNKING..." 
+                    // Rejoin everything and split by the first space.
+                    const fullString = nonEdnParts.join(' - ').trim();
+                    const spaceIndex = fullString.indexOf(' ');
+                    if (spaceIndex > -1) {
+                        db = fullString.substring(0, spaceIndex).trim();
+                        desc = fullString.substring(spaceIndex).trim();
+                    } else {
+                        db = fullString;
+                    }
+                } else {
+                    // Scenario: "SP-1-17" (No spaces in ID)
+                    // If there are multiple parts remaining, it implies the separator was ' - '.
+                    if (nonEdnParts.length > 1) {
+                        // New Format: "SP-1-17 - IN ELECTRICAL..."
+                        db = firstPart;
+                        desc = nonEdnParts.slice(1).join(' - ').trim();
+                    } else {
+                        // Only one part and no spaces. e.g. "DB-1"
+                        db = firstPart;
+                        // Description is empty
+                    }
+                }
             }
 
             return { edn, db, desc };
@@ -373,7 +403,10 @@
                         header: true,
                         skipEmptyLines: true,
                         complete: (results) => {
-                            setCsvData(results.data);
+                            // Robustness: ensure we only keep rows that have the primary key 'WO #'
+                            // This handles cases with extra empty columns or footer rows
+                            const validData = results.data.filter(row => row["WO #"] && row["WO #"].trim() !== "");
+                            setCsvData(validData);
                         },
                     });
                 }
@@ -414,6 +447,39 @@
                 setIsGenerating(true);
 
                 try {
+                    // Logic to construct filename
+                    // Requirement: Store Name (with Booker/Makro moved to end, number stripped) + WO Number
+                    let fileName = `EICR_Form_${formData.won || 'Untitled'}`;
+                    
+                    if (formData.storeNumberName) {
+                        let storeText = formData.storeNumberName;
+                        const woText = formData.won || "";
+                        
+                        // 1. Remove leading Store Number (digits followed by optional whitespace)
+                        // This handles "325 BOOKER..." -> "BOOKER..." or "325 SOUTHEND..." -> "SOUTHEND..."
+                        storeText = storeText.replace(/^\d+\s*/, '');
+
+                        // 2. Identify and Move Brand (Booker/Makro)
+                        // Regex to find BOOKER or MAKRO (case insensitive)
+                        const brandMatch = storeText.match(/\b(BOOKER|MAKRO)\b/i);
+                        
+                        if (brandMatch) {
+                            const brand = brandMatch[0].toUpperCase();
+                            // Remove brand from the text
+                            const textWithoutBrand = storeText.replace(brandMatch[0], '').replace(/\s+/g, ' ').trim();
+                            
+                            // Construct: [Clean Name] [Brand] [WO]
+                            // Example: "SOUTHEND ON SEA BOOKER 98108035"
+                            fileName = `${textWithoutBrand} ${brand} ${woText}`.trim();
+                        } else {
+                            // Fallback if no brand found, just [Clean Name] [WO]
+                            fileName = `${storeText} ${woText}`.trim();
+                        }
+                    }
+
+                    // Sanitize filename to remove illegal characters
+                    fileName = fileName.replace(/[/\\?%*:|"<>]/g, '-');
+
                     // Access jsPDF from global
                     const { jsPDF } = window.jspdf;
                     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -434,7 +500,7 @@
                         pdf.addImage(imgData2, 'PNG', 0, 0, 210, 297);
                     }
 
-                    pdf.save(`EICR_Form_${formData.won || 'Untitled'}.pdf`);
+                    pdf.save(`${fileName}.pdf`);
                 } catch (err) {
                     console.error("PDF Generation failed", err);
                     alert("Failed to generate PDF. See console for details.");
