@@ -60,13 +60,21 @@
       }
       .a4-page {
         width: 210mm;
-        min-height: 297mm;
+        height: 297mm; /* Fixed A4 Height */
         background: white;
         box-shadow: 0 0 10px rgba(0,0,0,0.1);
         margin: 0 auto;
-        padding: 10mm; 
-        box-sizing: border-box;
+        overflow: hidden; /* Prevent overflow messing up PDF */
         position: relative;
+        /* Padding is handled by inner container to allow bg colors to extend if needed, though here we want white paper */
+      }
+      .page-content {
+        padding: 10mm;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
       }
     </style>
 <link rel="stylesheet" href="/index.css">
@@ -262,11 +270,12 @@
 
         const FormPreview = forwardRef(({ data }, ref) => {
             
+            // Updated InputDisplay for Centered Text
             const InputDisplay = ({ value }) => (
-                <div className="flex flex-col h-full justify-center">
-                    <div className="font-mono text-sm md:text-base text-gray-800 px-2 break-words whitespace-pre-wrap">
+                <div className="flex items-center justify-center w-full h-full p-1 overflow-hidden">
+                    <span className="font-mono text-sm md:text-base text-gray-800 text-center break-words w-full leading-tight">
                         {value}
-                    </div>
+                    </span>
                 </div>
             );
 
@@ -274,118 +283,120 @@
                 <div ref={ref} className="bg-gray-100 p-4 print:p-0">
                     {/* PAGE 1 */}
                     <div className="a4-page mb-8 print:mb-0" id="page-1">
-                        <div className="bg-bookerBlue text-white p-4 flex justify-between items-start mb-6">
-                            <div className="flex flex-col items-start">
-                                <div className="bg-bookerOrange flex flex-col items-center px-4 py-2">
-                                    <h1 className="text-3xl font-bold tracking-tight text-white leading-none">BOOKER</h1>
-                                    <span className="text-xs tracking-widest uppercase text-white font-bold leading-none mt-1">Wholesale</span>
+                        <div className="page-content">
+                            <div className="bg-bookerBlue text-white p-4 flex justify-between items-start mb-6 shrink-0">
+                                <div className="flex flex-col items-start">
+                                    <div className="bg-bookerOrange flex flex-col items-center px-4 py-2">
+                                        <h1 className="text-3xl font-bold tracking-tight text-white leading-none">BOOKER</h1>
+                                        <span className="text-xs tracking-widest uppercase text-white font-bold leading-none mt-1">Wholesale</span>
+                                    </div>
+                                    <h2 className="text-4xl font-black text-yellow-400 mt-1 lowercase tracking-tighter">makro</h2>
                                 </div>
-                                <h2 className="text-4xl font-black text-yellow-400 mt-1 lowercase tracking-tighter">makro</h2>
+                                <div className="text-center flex-grow pt-2">
+                                    <h1 className="text-4xl font-normal">EICR Rectification Form</h1>
+                                </div>
                             </div>
-                            <div className="text-center flex-grow pt-2">
-                                <h1 className="text-4xl font-normal">EICR Rectification Form</h1>
-                            </div>
-                        </div>
 
-                        <div className="space-y-4 text-sm font-bold text-bookerBlue">
-                            <div className="flex items-center">
-                                <label className="w-64 text-right pr-4">EDN Number :</label>
-                                <div className="flex-grow border-2 border-black h-10 bg-white">
-                                    <InputDisplay value={data.ednNumber} />
-                                </div>
-                            </div>
-                            <div className="flex items-center">
-                                <label className="w-64 text-right pr-4">Store Number and Name:</label>
-                                <div className="flex-grow border-2 border-black h-10 bg-white">
-                                    <InputDisplay value={data.storeNumberName} />
-                                </div>
-                            </div>
-                            {/* DB Identification - Taller Box (approx 2 rows) */}
-                            <div className="flex items-start pt-1">
-                                <label className="w-64 text-right pr-4 leading-tight">DB Identification Number & Circuit<br/>Reference:</label>
-                                <div className="flex-grow border-2 border-black h-16 bg-white">
-                                    <InputDisplay value={data.dbId} />
-                                </div>
-                            </div>
-                            <div className="flex items-start pt-1">
-                                <label className="w-64 text-right pr-4">Description of Work Undertaken:</label>
-                                <div className="flex-grow border-2 border-black h-24 bg-white">
-                                    <InputDisplay value={data.description} />
-                                </div>
-                            </div>
-                            <div className="h-4"></div>
-                            <div className="flex items-center">
-                                <label className="w-64 text-right pr-4">Protective Device:</label>
-                                <div className="flex items-center space-x-2 flex-grow">
-                                    <span className="text-bookerBlue">BS EN:</span>
-                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.bsEn} /></div>
-                                    <span className="text-bookerBlue ml-4">Type:</span>
-                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.type} /></div>
-                                    <span className="text-bookerBlue ml-4">Rating:</span>
-                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.rating} /></div>
-                                </div>
-                            </div>
-                            <div className="flex items-center">
-                                <label className="w-64 text-right pr-4">Conductor:</label>
-                                <div className="flex items-center space-x-2 flex-grow">
-                                    <span className="text-bookerBlue">CSA of Live Conductors:</span>
-                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.csaLive} /></div>
-                                    <span className="text-bookerBlue ml-4">CSA of CPC:</span>
-                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.csaCpc} /></div>
-                                </div>
-                            </div>
-                            <div className="flex items-center">
-                                <label className="w-64 text-right pr-4">Test Results:</label>
-                                <div className="flex items-center space-x-2 flex-grow flex-wrap gap-y-2">
-                                    <span className="text-bookerBlue">Ze / ZDb:</span>
-                                    <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1">
-                                        <span className="truncate w-full">{data.ze}</span>
-                                        <span className="text-xs">Ω</span>
-                                    </div>
-                                    <span className="text-bookerBlue ml-2">Zs:</span>
-                                    <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1">
-                                        <span className="truncate w-full">{data.zs}</span>
-                                        <span className="text-xs">Ω</span>
-                                    </div>
-                                    <span className="text-bookerBlue ml-2">R1+R2:</span>
-                                    <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1">
-                                        <span className="truncate w-full">{data.r1r2}</span>
-                                        <span className="text-xs">Ω</span>
+                            <div className="space-y-4 text-sm font-bold text-bookerBlue flex-grow">
+                                <div className="flex items-center">
+                                    <label className="w-64 text-right pr-4">EDN Number :</label>
+                                    <div className="flex-grow border-2 border-black h-10 bg-white">
+                                        <InputDisplay value={data.ednNumber} />
                                     </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center">
-                                <div className="w-64 pr-4"></div> 
-                                <div className="flex items-center space-x-2 flex-grow justify-end pr-10">
-                                    <span className="text-bookerBlue">RCD x1:</span>
-                                    <div className="border-2 border-black h-8 w-32 bg-white flex items-center justify-between px-1">
-                                        <span className="truncate w-full">{data.rcd}</span>
-                                        <span className="text-xs">mS</span>
+                                <div className="flex items-center">
+                                    <label className="w-64 text-right pr-4">Store Number and Name:</label>
+                                    <div className="flex-grow border-2 border-black h-10 bg-white">
+                                        <InputDisplay value={data.storeNumberName} />
                                     </div>
                                 </div>
+                                {/* DB Identification - Taller Box (approx 2 rows) */}
+                                <div className="flex items-center pt-1">
+                                    <label className="w-64 text-right pr-4 leading-tight">DB Identification Number & Circuit<br/>Reference:</label>
+                                    <div className="flex-grow border-2 border-black h-16 bg-white">
+                                        <InputDisplay value={data.dbId} />
+                                    </div>
+                                </div>
+                                <div className="flex items-center pt-1">
+                                    <label className="w-64 text-right pr-4">Description of Work Undertaken:</label>
+                                    <div className="flex-grow border-2 border-black h-24 bg-white">
+                                        <InputDisplay value={data.description} />
+                                    </div>
+                                </div>
+                                <div className="h-4"></div>
+                                <div className="flex items-center">
+                                    <label className="w-64 text-right pr-4">Protective Device:</label>
+                                    <div className="flex items-center space-x-2 flex-grow">
+                                        <span className="text-bookerBlue">BS EN:</span>
+                                        <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.bsEn} /></div>
+                                        <span className="text-bookerBlue ml-4">Type:</span>
+                                        <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.type} /></div>
+                                        <span className="text-bookerBlue ml-4">Rating:</span>
+                                        <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.rating} /></div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <label className="w-64 text-right pr-4">Conductor:</label>
+                                    <div className="flex items-center space-x-2 flex-grow">
+                                        <span className="text-bookerBlue">CSA of Live Conductors:</span>
+                                        <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.csaLive} /></div>
+                                        <span className="text-bookerBlue ml-4">CSA of CPC:</span>
+                                        <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.csaCpc} /></div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <label className="w-64 text-right pr-4">Test Results:</label>
+                                    <div className="flex items-center space-x-2 flex-grow flex-wrap gap-y-2">
+                                        <span className="text-bookerBlue">Ze / ZDb:</span>
+                                        <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1">
+                                            <div className="w-full text-center truncate">{data.ze}</div>
+                                            <span className="text-xs absolute right-1">Ω</span>
+                                        </div>
+                                        <span className="text-bookerBlue ml-2">Zs:</span>
+                                        <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1 relative">
+                                            <div className="w-full text-center truncate">{data.zs}</div>
+                                            <span className="text-xs absolute right-1">Ω</span>
+                                        </div>
+                                        <span className="text-bookerBlue ml-2">R1+R2:</span>
+                                        <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1 relative">
+                                            <div className="w-full text-center truncate">{data.r1r2}</div>
+                                            <span className="text-xs absolute right-1">Ω</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <div className="w-64 pr-4"></div> 
+                                    <div className="flex items-center space-x-2 flex-grow justify-end pr-10">
+                                        <span className="text-bookerBlue">RCD x1:</span>
+                                        <div className="border-2 border-black h-8 w-32 bg-white flex items-center justify-between px-1 relative">
+                                            <div className="w-full text-center truncate">{data.rcd}</div>
+                                            <span className="text-xs absolute right-1">mS</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center mt-6">
+                                    <label className="w-64 text-right pr-4">Date Work Completed:</label>
+                                    <div className="border-2 border-black h-8 w-48 bg-white"><InputDisplay value={data.dateCompleted} /></div>
+                                </div>
+                                <div className="flex items-center">
+                                    <label className="w-64 text-right pr-4">WON for Completed Work:</label>
+                                    <div className="border-2 border-black h-8 w-48 bg-white"><InputDisplay value={data.won} /></div>
+                                </div>
+                                <div className="flex items-center mt-8 pt-4">
+                                    <label className="w-64 text-right pr-4">Name of Technician:</label>
+                                    <div className="border-2 border-black h-8 w-64 bg-white"><InputDisplay value={data.technicianName} /></div>
+                                    <label className="w-48 text-right pr-4">Supervisor Verification:</label>
+                                    <div className="border-2 border-black h-8 w-64 bg-white"><InputDisplay value={data.supervisorName} /></div>
+                                </div>
                             </div>
-                            <div className="flex items-center mt-6">
-                                <label className="w-64 text-right pr-4">Date Work Completed:</label>
-                                <div className="border-2 border-black h-8 w-48 bg-white"><InputDisplay value={data.dateCompleted} /></div>
-                            </div>
-                            <div className="flex items-center">
-                                <label className="w-64 text-right pr-4">WON for Completed Work:</label>
-                                <div className="border-2 border-black h-8 w-48 bg-white"><InputDisplay value={data.won} /></div>
-                            </div>
-                            <div className="flex items-center mt-8 pt-4">
-                                <label className="w-64 text-right pr-4">Name of Technician:</label>
-                                <div className="border-2 border-black h-8 w-64 bg-white"><InputDisplay value={data.technicianName} /></div>
-                                <label className="w-48 text-right pr-4">Supervisor Verification:</label>
-                                <div className="border-2 border-black h-8 w-64 bg-white"><InputDisplay value={data.supervisorName} /></div>
-                            </div>
-                        </div>
 
-                        <div className="absolute bottom-10 left-0 w-full px-10">
-                            <div className="bg-bookerBlue text-white py-4 px-6 flex justify-between items-center">
-                                <span className="text-xl font-light">Everyone, every day, home safely<span className="text-red-500 font-bold">.</span></span>
-                                <div className="text-right">
-                                    <h3 className="text-2xl font-bold text-gray-400">Safety First</h3>
-                                    <p className="text-sm">be the <span className="text-yellow-400 font-bold">difference</span></p>
+                            <div className="w-full pt-10 mt-auto">
+                                <div className="bg-bookerBlue text-white py-4 px-6 flex justify-between items-center">
+                                    <span className="text-xl font-light">Everyone, every day, home safely<span className="text-red-500 font-bold">.</span></span>
+                                    <div className="text-right">
+                                        <h3 className="text-2xl font-bold text-gray-400">Safety First</h3>
+                                        <p className="text-sm">be the <span className="text-yellow-400 font-bold">difference</span></p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -393,27 +404,29 @@
 
                     {/* PAGE 2 - IMAGES (For PDF ONLY) */}
                     <div className="a4-page relative" id="page-2">
-                        <div className="grid grid-cols-2 gap-8">
-                            <div className="flex flex-col">
-                                <h3 className="text-bookerBlue font-bold mb-2 uppercase">BEFORE</h3>
-                                {/* Mobile Portrait Photo Aspect Ratio (approx 3:4) */}
-                                <div className="border-2 border-gray-300 w-full aspect-[3/4] flex justify-center items-center bg-white overflow-hidden p-1">
-                                    {data.image1 ? (
-                                        <img src={data.image1} alt="Evidence 1" className="w-full h-full object-contain" />
-                                    ) : (
-                                        <span className="text-gray-300">No Image Selected</span>
-                                    )}
+                        <div className="page-content">
+                             <div className="grid grid-cols-2 gap-8">
+                                <div className="flex flex-col">
+                                    <h3 className="text-bookerBlue font-bold mb-2 uppercase">BEFORE</h3>
+                                    {/* Mobile Portrait Photo Aspect Ratio (approx 3:4) */}
+                                    <div className="border-2 border-gray-300 w-full aspect-[3/4] flex justify-center items-center bg-white overflow-hidden p-1">
+                                        {data.image1 ? (
+                                            <img src={data.image1} alt="Evidence 1" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <span className="text-gray-300">No Image Selected</span>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex flex-col">
-                                <h3 className="text-bookerBlue font-bold mb-2 uppercase">AFTER</h3>
-                                {/* Mobile Portrait Photo Aspect Ratio (approx 3:4) */}
-                                <div className="border-2 border-gray-300 w-full aspect-[3/4] flex justify-center items-center bg-white overflow-hidden p-1">
-                                    {data.image2 ? (
-                                        <img src={data.image2} alt="Evidence 2" className="w-full h-full object-contain" />
-                                    ) : (
-                                        <span className="text-gray-300">No Image Selected</span>
-                                    )}
+                                <div className="flex flex-col">
+                                    <h3 className="text-bookerBlue font-bold mb-2 uppercase">AFTER</h3>
+                                    {/* Mobile Portrait Photo Aspect Ratio (approx 3:4) */}
+                                    <div className="border-2 border-gray-300 w-full aspect-[3/4] flex justify-center items-center bg-white overflow-hidden p-1">
+                                        {data.image2 ? (
+                                            <img src={data.image2} alt="Evidence 2" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <span className="text-gray-300">No Image Selected</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -495,17 +508,26 @@
                     const page1 = printRef.current.querySelector('#page-1');
                     const page2 = printRef.current.querySelector('#page-2');
 
+                    // Configuration for html2canvas
+                    const canvasOptions = { 
+                        scale: 3, // High resolution
+                        useCORS: true, 
+                        logging: false,
+                        scrollY: 0, // Prevent scroll offset issues
+                        windowWidth: 1200 // Force consistent width rendering
+                    };
+
                     if (page1) {
-                        const canvas1 = await html2canvas(page1, { scale: 2, useCORS: true });
-                        const imgData1 = canvas1.toDataURL('image/png');
-                        pdf.addImage(imgData1, 'PNG', 0, 0, 210, 297);
+                        const canvas1 = await html2canvas(page1, canvasOptions);
+                        const imgData1 = canvas1.toDataURL('image/jpeg', 0.98);
+                        pdf.addImage(imgData1, 'JPEG', 0, 0, 210, 297);
                     }
 
                     if (page2) {
                         pdf.addPage();
-                        const canvas2 = await html2canvas(page2, { scale: 2, useCORS: true });
-                        const imgData2 = canvas2.toDataURL('image/png');
-                        pdf.addImage(imgData2, 'PNG', 0, 0, 210, 297);
+                        const canvas2 = await html2canvas(page2, canvasOptions);
+                        const imgData2 = canvas2.toDataURL('image/jpeg', 0.98);
+                        pdf.addImage(imgData2, 'JPEG', 0, 0, 210, 297);
                     }
 
                     pdf.save(`${fileName}.pdf`);
@@ -549,7 +571,7 @@
 
                     const labelFont = { name: 'Arial', size: 10, bold: true, color: { argb: colors.blue } };
                     const valueFont = { name: 'Arial', size: 10, color: { argb: colors.black } };
-                    const valueAlignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                    const valueAlignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                     const borderBox = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
 
                     // HEADER ROW (Rows 1-4)
@@ -631,18 +653,21 @@
                     sheet.getCell(`E${currentRow}`).font = labelFont;
                     sheet.mergeCells(`F${currentRow}:G${currentRow}`);
                     sheet.getCell(`F${currentRow}`).value = formData.bsEn;
+                    sheet.getCell(`F${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`F${currentRow}`).border = borderBox;
                     
                     // Type
                     sheet.getCell(`H${currentRow}`).value = "Type:";
                     sheet.getCell(`H${currentRow}`).font = labelFont;
                     sheet.getCell(`I${currentRow}`).value = formData.type;
+                    sheet.getCell(`I${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`I${currentRow}`).border = borderBox;
 
                     // Rating
                     sheet.getCell(`J${currentRow}`).value = "Rating:";
                     sheet.getCell(`J${currentRow}`).font = labelFont;
                     sheet.getCell(`K${currentRow}`).value = formData.rating;
+                    sheet.getCell(`K${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`K${currentRow}`).border = borderBox;
                     currentRow += 2;
 
@@ -656,12 +681,14 @@
                     sheet.getCell(`E${currentRow}`).value = "CSA of Live Conductors:";
                     sheet.getCell(`E${currentRow}`).font = labelFont;
                     sheet.getCell(`G${currentRow}`).value = formData.csaLive;
+                    sheet.getCell(`G${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`G${currentRow}`).border = borderBox;
 
                     sheet.mergeCells(`H${currentRow}:I${currentRow}`);
                     sheet.getCell(`H${currentRow}`).value = "CSA of CPC:";
                     sheet.getCell(`H${currentRow}`).font = labelFont;
                     sheet.getCell(`J${currentRow}`).value = formData.csaCpc;
+                    sheet.getCell(`J${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`J${currentRow}`).border = borderBox;
                     currentRow += 2;
 
@@ -675,18 +702,21 @@
                     sheet.getCell(`E${currentRow}`).value = "Ze / ZDb:";
                     sheet.getCell(`E${currentRow}`).font = labelFont;
                     sheet.getCell(`F${currentRow}`).value = formData.ze + " Ω";
+                    sheet.getCell(`F${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`F${currentRow}`).border = borderBox;
 
                     // Zs
                     sheet.getCell(`G${currentRow}`).value = "Zs:";
                     sheet.getCell(`G${currentRow}`).font = labelFont;
                     sheet.getCell(`H${currentRow}`).value = formData.zs + " Ω";
+                    sheet.getCell(`H${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`H${currentRow}`).border = borderBox;
 
                     // R1+R2
                     sheet.getCell(`I${currentRow}`).value = "R1+R2:";
                     sheet.getCell(`I${currentRow}`).font = labelFont;
                     sheet.getCell(`J${currentRow}`).value = formData.r1r2 + " Ω";
+                    sheet.getCell(`J${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`J${currentRow}`).border = borderBox;
                     currentRow += 2;
 
@@ -697,6 +727,7 @@
                     sheet.getCell(`H${currentRow}`).alignment = { horizontal: 'right' };
                     sheet.mergeCells(`J${currentRow}:K${currentRow}`);
                     sheet.getCell(`J${currentRow}`).value = formData.rcd + " mS";
+                    sheet.getCell(`J${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`J${currentRow}`).border = borderBox;
                     currentRow += 2;
 
@@ -711,6 +742,7 @@
                     sheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
                     sheet.mergeCells(`E${currentRow}:G${currentRow}`);
                     sheet.getCell(`E${currentRow}`).value = formData.technicianName;
+                    sheet.getCell(`E${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`E${currentRow}`).border = borderBox;
 
                     sheet.mergeCells(`H${currentRow}:I${currentRow}`);
@@ -718,6 +750,7 @@
                     sheet.getCell(`H${currentRow}`).font = labelFont;
                     sheet.mergeCells(`J${currentRow}:K${currentRow}`);
                     sheet.getCell(`J${currentRow}`).value = formData.supervisorName;
+                    sheet.getCell(`J${currentRow}`).alignment = valueAlignment;
                     sheet.getCell(`J${currentRow}`).border = borderBox;
                     currentRow += 4;
 
