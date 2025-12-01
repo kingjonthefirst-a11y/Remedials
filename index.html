@@ -31,12 +31,6 @@
     <!-- PapaParse -->
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
     
-    <!-- html2canvas -->
-    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    
-    <!-- jsPDF -->
-    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-
     <!-- ExcelJS -->
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     
@@ -64,7 +58,7 @@
         background: white;
         box-shadow: 0 0 10px rgba(0,0,0,0.1);
         margin: 0 auto;
-        overflow: hidden; /* Prevent overflow messing up PDF */
+        overflow: hidden; /* Prevent overflow messing up preview */
         position: relative;
         /* Padding is handled by inner container to allow bg colors to extend if needed, though here we want white paper */
       }
@@ -77,14 +71,13 @@
         flex-direction: column;
       }
     </style>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
 
     <!-- Main Application Script -->
     <script type="text/babel" data-presets="react,typescript">
-        const { useState, useRef, useEffect, useMemo, forwardRef } = React;
+        const { useState, useRef, useEffect, useMemo } = React;
         
         // --- ICONS ---
         const IconBase = ({ children, className = "" }) => (
@@ -117,11 +110,6 @@
         const FileTextIcon = ({ className }) => (
             <IconBase className={className}>
                 <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/>
-            </IconBase>
-        );
-        const FileDownIcon = ({ className }) => (
-            <IconBase className={className}>
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/>
             </IconBase>
         );
         const SheetIcon = ({ className }) => (
@@ -268,7 +256,7 @@
 
         // --- COMPONENT: FormPreview ---
 
-        const FormPreview = forwardRef(({ data }, ref) => {
+        const FormPreview = ({ data }) => {
             
             // Updated InputDisplay for Centered Text
             const InputDisplay = ({ value }) => (
@@ -280,7 +268,7 @@
             );
 
             return (
-                <div ref={ref} className="bg-gray-100 p-4 print:p-0">
+                <div className="bg-gray-100 p-4 print:p-0">
                     {/* PAGE 1 */}
                     <div className="a4-page mb-8 print:mb-0" id="page-1">
                         <div className="page-content">
@@ -402,7 +390,7 @@
                         </div>
                     </div>
 
-                    {/* PAGE 2 - IMAGES (For PDF ONLY) */}
+                    {/* PAGE 2 - IMAGES */}
                     <div className="a4-page relative" id="page-2">
                         <div className="page-content">
                              <div className="grid grid-cols-2 gap-8">
@@ -433,8 +421,7 @@
                     </div>
                 </div>
             );
-        });
-        FormPreview.displayName = "FormPreview";
+        };
 
         // --- MAIN APP ---
 
@@ -448,7 +435,6 @@
             const [formData, setFormData] = useState(INITIAL_FORM_STATE);
             const [isGenerating, setIsGenerating] = useState(false);
             const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-            const printRef = useRef(null);
 
             const handleFileUpload = (e) => {
                 const file = e.target.files?.[0];
@@ -491,51 +477,6 @@
                         setFormData(prev => ({ ...prev, [field]: reader.result }));
                     };
                     reader.readAsDataURL(file);
-                }
-            };
-
-            const generatePDF = async () => {
-                if (!printRef.current) return;
-                setIsGenerating(true);
-
-                try {
-                    const fileName = getFileName(formData);
-
-                    // Access jsPDF from global
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    
-                    const page1 = printRef.current.querySelector('#page-1');
-                    const page2 = printRef.current.querySelector('#page-2');
-
-                    // Configuration for html2canvas
-                    const canvasOptions = { 
-                        scale: 3, // High resolution
-                        useCORS: true, 
-                        logging: false,
-                        scrollY: 0, // Prevent scroll offset issues
-                        windowWidth: 1200 // Force consistent width rendering
-                    };
-
-                    if (page1) {
-                        const canvas1 = await html2canvas(page1, canvasOptions);
-                        const imgData1 = canvas1.toDataURL('image/jpeg', 0.98);
-                        pdf.addImage(imgData1, 'JPEG', 0, 0, 210, 297);
-                    }
-
-                    if (page2) {
-                        pdf.addPage();
-                        const canvas2 = await html2canvas(page2, canvasOptions);
-                        const imgData2 = canvas2.toDataURL('image/jpeg', 0.98);
-                        pdf.addImage(imgData2, 'JPEG', 0, 0, 210, 297);
-                    }
-
-                    pdf.save(`${fileName}.pdf`);
-                } catch (err) {
-                    console.error("PDF Generation failed", err);
-                    alert("Failed to generate PDF. See console for details.");
-                } finally {
-                    setIsGenerating(false);
                 }
             };
 
@@ -1028,13 +969,6 @@
                         
                         <div className="mt-8 pb-8 space-y-3">
                             <button 
-                                onClick={generatePDF}
-                                disabled={isGenerating}
-                                className="w-full flex items-center justify-center gap-2 bg-bookerBlue text-white p-3 rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-50"
-                            >
-                                {isGenerating ? 'Generating...' : <><FileDownIcon className="w-5 h-5" /> Download PDF</>}
-                            </button>
-                            <button 
                                 onClick={generateExcel}
                                 disabled={isGenerating}
                                 className="w-full flex items-center justify-center gap-2 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
@@ -1045,7 +979,7 @@
                     </div>
 
                     <div className="flex-grow bg-gray-200 overflow-auto flex justify-center p-8">
-                        <FormPreview ref={printRef} data={formData} />
+                        <FormPreview data={formData} />
                     </div>
                 </div>
             );
@@ -1057,6 +991,5 @@
             root.render(<App />);
         }
     </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
