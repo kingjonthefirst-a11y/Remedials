@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EICR Form Generator</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              bookerBlue: '#00338D', 
+              bookerOrange: '#F37021',
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Global Dependencies (UMD/Browser builds) -->
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for in-browser JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- PapaParse -->
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    
+    <!-- html2canvas -->
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    
+    <!-- jsPDF -->
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+    <!-- ExcelJS -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    
+    <!-- FileSaver.js -->
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+    <style>
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; 
+      }
+      .a4-page {
+        width: 210mm;
+        min-height: 297mm;
+        background: white;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        margin: 0 auto;
+        padding: 10mm; 
+        box-sizing: border-box;
+        position: relative;
+      }
+    </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Main Application Script -->
+    <script type="text/babel" data-presets="react,typescript">
+        const { useState, useRef, useEffect, useMemo, forwardRef } = React;
+        
+        // --- ICONS ---
+        const IconBase = ({ children, className = "" }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="24" height="24" viewBox="0 0 24 24" 
+                fill="none" stroke="currentColor" strokeWidth="2" 
+                strokeLinecap="round" strokeLinejoin="round" 
+                className={className}
+            >
+                {children}
+            </svg>
+        );
+
+        const UploadIcon = ({ className }) => (
+            <IconBase className={className}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>
+            </IconBase>
+        );
+        const SearchIcon = ({ className }) => (
+            <IconBase className={className}>
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </IconBase>
+        );
+        const ChevronDownIcon = ({ className }) => (
+            <IconBase className={className}>
+                <path d="m6 9 6 6 6-6"/>
+            </IconBase>
+        );
+        const FileTextIcon = ({ className }) => (
+            <IconBase className={className}>
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/>
+            </IconBase>
+        );
+        const FileDownIcon = ({ className }) => (
+            <IconBase className={className}>
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/>
+            </IconBase>
+        );
+        const SheetIcon = ({ className }) => (
+            <IconBase className={className}>
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                <line x1="3" x2="21" y1="9" y2="9" />
+                <line x1="3" x2="21" y1="15" y2="15" />
+                <line x1="9" x2="9" y1="3" y2="21" />
+            </IconBase>
+        );
+        const ImageIcon = ({ className }) => (
+            <IconBase className={className}>
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+            </IconBase>
+        );
+        const LockIcon = ({ className }) => (
+            <IconBase className={className}>
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </IconBase>
+        );
+
+        // --- CONSTANTS & TYPES ---
+        
+        const INITIAL_FORM_STATE = {
+            ednNumber: "",
+            storeNumberName: "",
+            dbId: "",
+            description: "",
+            bsEn: "",
+            type: "",
+            rating: "",
+            csaLive: "",
+            csaCpc: "",
+            ze: "",
+            zs: "",
+            r1r2: "",
+            rcd: "",
+            dateCompleted: "",
+            won: "",
+            technicianName: "",
+            supervisorName: "",
+            image1: null,
+            image2: null,
+        };
+
+        // --- PARSER UTILS ---
+
+        const parseDescription = (fullDescription) => {
+            if (!fullDescription) return { edn: '', db: '', desc: '' };
+
+            // 1. Identify and extract EDN
+            const rawParts = fullDescription.split(' - ');
+            const nonEdnParts = [];
+            let edn = '';
+
+            // Extract EDN part (starts with EDN)
+            rawParts.forEach(part => {
+                if (part.trim().startsWith('EDN')) {
+                    edn = part.trim();
+                } else {
+                    nonEdnParts.push(part);
+                }
+            });
+
+            // 2. Determine DB and Description from the remainder
+            let db = '';
+            let desc = '';
+
+            if (nonEdnParts.length === 0) {
+                 // Only EDN existed or empty
+            } else {
+                const firstPart = nonEdnParts[0].trim();
+                // Check if the first part contains spaces.
+                const hasSpaces = firstPart.indexOf(' ') > -1;
+
+                if (hasSpaces) {
+                    // Old Format: "DB-1-9-4 BELOW DB TRUNKING..." 
+                    const fullString = nonEdnParts.join(' - ').trim();
+                    const spaceIndex = fullString.indexOf(' ');
+                    if (spaceIndex > -1) {
+                        db = fullString.substring(0, spaceIndex).trim();
+                        desc = fullString.substring(spaceIndex).trim();
+                    } else {
+                        db = fullString;
+                    }
+                } else {
+                    // New Format: "SP-1-17 - IN ELECTRICAL..."
+                    if (nonEdnParts.length > 1) {
+                        db = firstPart;
+                        desc = nonEdnParts.slice(1).join(' - ').trim();
+                    } else {
+                        db = firstPart;
+                        // Description is empty
+                    }
+                }
+            }
+
+            return { edn, db, desc };
+        };
+
+        const mapRowToForm = (row) => {
+            const { edn, db, desc } = parseDescription(row["Problem Description"] || "");
+            const siteNo = row["Site No."] || "";
+            const siteName = row["Site Name"] || "";
+            
+            return {
+                won: row["WO #"] || "",
+                storeNumberName: `${siteNo} ${siteName}`.trim(),
+                ednNumber: edn,
+                dbId: db,
+                description: desc,
+                dateCompleted: row["Date Completed"] ? new Date(row["Date Completed"]).toISOString().split('T')[0] : "", 
+            };
+        };
+
+        // --- HELPERS ---
+        const getFileName = (formData) => {
+            // Requirement: Store Name (with Booker/Makro moved to end, number stripped) + WO Number
+            let fileName = `EICR_Form_${formData.won || 'Untitled'}`;
+            
+            if (formData.storeNumberName) {
+                let storeText = formData.storeNumberName;
+                const woText = formData.won || "";
+                
+                // 1. Remove leading Store Number
+                storeText = storeText.replace(/^\d+\s*/, '');
+
+                // 2. Identify and Move Brand
+                const brandMatch = storeText.match(/\b(BOOKER|MAKRO)\b/i);
+                
+                if (brandMatch) {
+                    const brand = brandMatch[0].toUpperCase();
+                    // Remove brand from the text
+                    const textWithoutBrand = storeText.replace(brandMatch[0], '').replace(/\s+/g, ' ').trim();
+                    fileName = `${textWithoutBrand} ${brand} ${woText}`.trim();
+                } else {
+                    fileName = `${storeText} ${woText}`.trim();
+                }
+            }
+
+            // Sanitize filename
+            return fileName.replace(/[/\\?%*:|"<>]/g, '-');
+        };
+
+        // --- COMPONENT: FormPreview ---
+
+        const FormPreview = forwardRef(({ data }, ref) => {
+            
+            const InputDisplay = ({ value }) => (
+                <div className="flex flex-col h-full justify-center">
+                    <div className="font-mono text-sm md:text-base text-gray-800 px-2 break-words whitespace-pre-wrap">
+                        {value}
+                    </div>
+                </div>
+            );
+
+            return (
+                <div ref={ref} className="bg-gray-100 p-4 print:p-0">
+                    {/* PAGE 1 */}
+                    <div className="a4-page mb-8 print:mb-0" id="page-1">
+                        <div className="bg-bookerBlue text-white p-4 flex justify-between items-start mb-6">
+                            <div className="flex flex-col items-start">
+                                <div className="bg-bookerOrange flex flex-col items-center px-4 py-2">
+                                    <h1 className="text-3xl font-bold tracking-tight text-white leading-none">BOOKER</h1>
+                                    <span className="text-xs tracking-widest uppercase text-white font-bold leading-none mt-1">Wholesale</span>
+                                </div>
+                                <h2 className="text-4xl font-black text-yellow-400 mt-1 lowercase tracking-tighter">makro</h2>
+                            </div>
+                            <div className="text-center flex-grow pt-2">
+                                <h1 className="text-4xl font-normal">EICR Rectification Form</h1>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 text-sm font-bold text-bookerBlue">
+                            <div className="flex items-center">
+                                <label className="w-64 text-right pr-4">EDN Number :</label>
+                                <div className="flex-grow border-2 border-black h-10 bg-white">
+                                    <InputDisplay value={data.ednNumber} />
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <label className="w-64 text-right pr-4">Store Number and Name:</label>
+                                <div className="flex-grow border-2 border-black h-10 bg-white">
+                                    <InputDisplay value={data.storeNumberName} />
+                                </div>
+                            </div>
+                            {/* DB Identification - Taller Box (approx 2 rows) */}
+                            <div className="flex items-start pt-1">
+                                <label className="w-64 text-right pr-4 leading-tight">DB Identification Number & Circuit<br/>Reference:</label>
+                                <div className="flex-grow border-2 border-black h-16 bg-white">
+                                    <InputDisplay value={data.dbId} />
+                                </div>
+                            </div>
+                            <div className="flex items-start pt-1">
+                                <label className="w-64 text-right pr-4">Description of Work Undertaken:</label>
+                                <div className="flex-grow border-2 border-black h-24 bg-white">
+                                    <InputDisplay value={data.description} />
+                                </div>
+                            </div>
+                            <div className="h-4"></div>
+                            <div className="flex items-center">
+                                <label className="w-64 text-right pr-4">Protective Device:</label>
+                                <div className="flex items-center space-x-2 flex-grow">
+                                    <span className="text-bookerBlue">BS EN:</span>
+                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.bsEn} /></div>
+                                    <span className="text-bookerBlue ml-4">Type:</span>
+                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.type} /></div>
+                                    <span className="text-bookerBlue ml-4">Rating:</span>
+                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.rating} /></div>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <label className="w-64 text-right pr-4">Conductor:</label>
+                                <div className="flex items-center space-x-2 flex-grow">
+                                    <span className="text-bookerBlue">CSA of Live Conductors:</span>
+                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.csaLive} /></div>
+                                    <span className="text-bookerBlue ml-4">CSA of CPC:</span>
+                                    <div className="border-2 border-black h-8 w-24 bg-white"><InputDisplay value={data.csaCpc} /></div>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <label className="w-64 text-right pr-4">Test Results:</label>
+                                <div className="flex items-center space-x-2 flex-grow flex-wrap gap-y-2">
+                                    <span className="text-bookerBlue">Ze / ZDb:</span>
+                                    <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1">
+                                        <span className="truncate w-full">{data.ze}</span>
+                                        <span className="text-xs">Ω</span>
+                                    </div>
+                                    <span className="text-bookerBlue ml-2">Zs:</span>
+                                    <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1">
+                                        <span className="truncate w-full">{data.zs}</span>
+                                        <span className="text-xs">Ω</span>
+                                    </div>
+                                    <span className="text-bookerBlue ml-2">R1+R2:</span>
+                                    <div className="border-2 border-black h-8 w-24 bg-white flex items-center justify-between px-1">
+                                        <span className="truncate w-full">{data.r1r2}</span>
+                                        <span className="text-xs">Ω</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <div className="w-64 pr-4"></div> 
+                                <div className="flex items-center space-x-2 flex-grow justify-end pr-10">
+                                    <span className="text-bookerBlue">RCD x1:</span>
+                                    <div className="border-2 border-black h-8 w-32 bg-white flex items-center justify-between px-1">
+                                        <span className="truncate w-full">{data.rcd}</span>
+                                        <span className="text-xs">mS</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center mt-6">
+                                <label className="w-64 text-right pr-4">Date Work Completed:</label>
+                                <div className="border-2 border-black h-8 w-48 bg-white"><InputDisplay value={data.dateCompleted} /></div>
+                            </div>
+                            <div className="flex items-center">
+                                <label className="w-64 text-right pr-4">WON for Completed Work:</label>
+                                <div className="border-2 border-black h-8 w-48 bg-white"><InputDisplay value={data.won} /></div>
+                            </div>
+                            <div className="flex items-center mt-8 pt-4">
+                                <label className="w-64 text-right pr-4">Name of Technician:</label>
+                                <div className="border-2 border-black h-8 w-64 bg-white"><InputDisplay value={data.technicianName} /></div>
+                                <label className="w-48 text-right pr-4">Supervisor Verification:</label>
+                                <div className="border-2 border-black h-8 w-64 bg-white"><InputDisplay value={data.supervisorName} /></div>
+                            </div>
+                        </div>
+
+                        <div className="absolute bottom-10 left-0 w-full px-10">
+                            <div className="bg-bookerBlue text-white py-4 px-6 flex justify-between items-center">
+                                <span className="text-xl font-light">Everyone, every day, home safely<span className="text-red-500 font-bold">.</span></span>
+                                <div className="text-right">
+                                    <h3 className="text-2xl font-bold text-gray-400">Safety First</h3>
+                                    <p className="text-sm">be the <span className="text-yellow-400 font-bold">difference</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* PAGE 2 - IMAGES (For PDF ONLY) */}
+                    <div className="a4-page relative" id="page-2">
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="flex flex-col">
+                                <h3 className="text-bookerBlue font-bold mb-2 uppercase">BEFORE</h3>
+                                {/* Mobile Portrait Photo Aspect Ratio (approx 3:4) */}
+                                <div className="border-2 border-gray-300 w-full aspect-[3/4] flex justify-center items-center bg-white overflow-hidden p-1">
+                                    {data.image1 ? (
+                                        <img src={data.image1} alt="Evidence 1" className="w-full h-full object-contain" />
+                                    ) : (
+                                        <span className="text-gray-300">No Image Selected</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex flex-col">
+                                <h3 className="text-bookerBlue font-bold mb-2 uppercase">AFTER</h3>
+                                {/* Mobile Portrait Photo Aspect Ratio (approx 3:4) */}
+                                <div className="border-2 border-gray-300 w-full aspect-[3/4] flex justify-center items-center bg-white overflow-hidden p-1">
+                                    {data.image2 ? (
+                                        <img src={data.image2} alt="Evidence 2" className="w-full h-full object-contain" />
+                                    ) : (
+                                        <span className="text-gray-300">No Image Selected</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        });
+        FormPreview.displayName = "FormPreview";
+
+        // --- MAIN APP ---
+
+        const App = () => {
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [passwordInput, setPasswordInput] = useState("");
+            const [loginError, setLoginError] = useState(false);
+
+            const [csvData, setCsvData] = useState([]);
+            const [selectedWo, setSelectedWo] = useState("");
+            const [formData, setFormData] = useState(INITIAL_FORM_STATE);
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+            const printRef = useRef(null);
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                            const validData = results.data.filter(row => row["WO #"] && row["WO #"].trim() !== "");
+                            setCsvData(validData);
+                        },
+                    });
+                }
+            };
+
+            const filteredWOs = useMemo(() => {
+                if (csvData.length === 0) return [];
+                if (!selectedWo) return csvData.slice(0, 2000);
+                return csvData
+                    .filter(row => row["WO #"]?.toLowerCase().includes(selectedWo.toLowerCase()))
+                    .slice(0, 2000);
+            }, [selectedWo, csvData]);
+
+            const selectRow = (row) => {
+                setSelectedWo(row["WO #"] || "");
+                const mapped = mapRowToForm(row);
+                setFormData(prev => ({ ...prev, ...mapped }));
+                setIsDropdownOpen(false);
+            };
+
+            const handleInputChange = (field, value) => {
+                setFormData(prev => ({ ...prev, [field]: value }));
+            };
+
+            const handleImageUpload = (field, e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setFormData(prev => ({ ...prev, [field]: reader.result }));
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const generatePDF = async () => {
+                if (!printRef.current) return;
+                setIsGenerating(true);
+
+                try {
+                    const fileName = getFileName(formData);
+
+                    // Access jsPDF from global
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    
+                    const page1 = printRef.current.querySelector('#page-1');
+                    const page2 = printRef.current.querySelector('#page-2');
+
+                    if (page1) {
+                        const canvas1 = await html2canvas(page1, { scale: 2, useCORS: true });
+                        const imgData1 = canvas1.toDataURL('image/png');
+                        pdf.addImage(imgData1, 'PNG', 0, 0, 210, 297);
+                    }
+
+                    if (page2) {
+                        pdf.addPage();
+                        const canvas2 = await html2canvas(page2, { scale: 2, useCORS: true });
+                        const imgData2 = canvas2.toDataURL('image/png');
+                        pdf.addImage(imgData2, 'PNG', 0, 0, 210, 297);
+                    }
+
+                    pdf.save(`${fileName}.pdf`);
+                } catch (err) {
+                    console.error("PDF Generation failed", err);
+                    alert("Failed to generate PDF. See console for details.");
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
+            const generateExcel = async () => {
+                setIsGenerating(true);
+                try {
+                    const workbook = new ExcelJS.Workbook();
+                    const sheet = workbook.addWorksheet("EICR Rectification Form", {
+                        pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, horizontalCentered: true }
+                    });
+
+                    // Define Columns (A to L for form, M spacer, N image1, ... T image2)
+                    // N (14) = Before Image. O,P,Q,R = Spacers. S (19) = After Image
+                    sheet.columns = [
+                        { width: 3 }, { width: 12 }, { width: 12 }, { width: 12 }, 
+                        { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 },
+                        { width: 12 }, { width: 12 }, { width: 12 }, { width: 3 },
+                        { width: 5 }, // M Spacer
+                        { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 5 }, // N-R (Image 1 Area)
+                        { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 } // S-V (Image 2 Area)
+                    ];
+
+                    // Styles
+                    const colors = {
+                        blue: 'FF00338D',
+                        orange: 'FFF37021',
+                        yellow: 'FFFFFF00',
+                        white: 'FFFFFFFF',
+                        black: 'FF000000',
+                        red: 'FFFF0000',
+                        grey: 'FFD1D5DB', // Match text-gray-400 roughly
+                    };
+
+                    const labelFont = { name: 'Arial', size: 10, bold: true, color: { argb: colors.blue } };
+                    const valueFont = { name: 'Arial', size: 10, color: { argb: colors.black } };
+                    const valueAlignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                    const borderBox = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+
+                    // HEADER ROW (Rows 1-4)
+                    // Blue background for header area A1:L4
+                    for(let r=1; r<=4; r++) {
+                        for(let c=1; c<=12; c++) {
+                            sheet.getCell(r,c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors.blue } };
+                        }
+                    }
+
+                    // Booker Logo (Orange Box) B1:C1
+                    sheet.mergeCells('B1:C1');
+                    const bookerCell = sheet.getCell('B1');
+                    bookerCell.value = "BOOKER";
+                    bookerCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: colors.white } };
+                    bookerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors.orange } };
+                    bookerCell.alignment = { horizontal: 'center', vertical: 'bottom' };
+
+                    // Wholesale (Orange Text) B2:C2 - Seamless Look
+                    sheet.mergeCells('B2:C2');
+                    const wholesaleCell = sheet.getCell('B2');
+                    wholesaleCell.value = "WHOLESALE";
+                    wholesaleCell.font = { name: 'Arial', size: 8, bold: true, color: { argb: colors.white } }; // White text
+                    wholesaleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors.orange } }; // Orange BG
+                    wholesaleCell.alignment = { horizontal: 'center', vertical: 'top' }; // Center aligned
+
+                    // Makro (Yellow) B3:C3
+                    sheet.mergeCells('B3:C3');
+                    const makroCell = sheet.getCell('B3');
+                    makroCell.value = "makro";
+                    makroCell.font = { name: 'Arial', size: 20, bold: true, color: { argb: colors.yellow } };
+                    makroCell.alignment = { horizontal: 'left', vertical: 'middle' };
+
+                    // Title F1:K3
+                    sheet.mergeCells('F1:K3');
+                    const titleCell = sheet.getCell('F1');
+                    titleCell.value = "EICR Rectification Form";
+                    titleCell.font = { name: 'Arial', size: 20, color: { argb: colors.white } };
+                    titleCell.alignment = { horizontal: 'right', vertical: 'middle' };
+
+                    // Helper for rows
+                    let currentRow = 6;
+
+                    const createField = (label, value, rows = 1) => {
+                        // Label: B-D, Value: E-K
+                        const startRow = currentRow;
+                        const endRow = currentRow + rows - 1;
+                        
+                        sheet.mergeCells(`B${startRow}:D${endRow}`);
+                        const lCell = sheet.getCell(`B${startRow}`);
+                        lCell.value = label;
+                        lCell.font = labelFont;
+                        lCell.alignment = { horizontal: 'right', vertical: 'top', wrapText: true };
+
+                        sheet.mergeCells(`E${startRow}:K${endRow}`);
+                        const vCell = sheet.getCell(`E${startRow}`);
+                        vCell.value = value;
+                        vCell.font = valueFont;
+                        vCell.alignment = valueAlignment;
+                        vCell.border = borderBox;
+
+                        currentRow += rows + 1; // Add gap
+                    };
+
+                    createField("EDN Number :", formData.ednNumber);
+                    createField("Store Number and Name:", formData.storeNumberName);
+                    // DB ID - 2 rows merged
+                    createField("DB Identification Number & Circuit Reference:", formData.dbId, 2);
+                    createField("Description of Work Undertaken:", formData.description, 3);
+
+                    // Protective Device
+                    sheet.mergeCells(`B${currentRow}:D${currentRow}`);
+                    sheet.getCell(`B${currentRow}`).value = "Protective Device:";
+                    sheet.getCell(`B${currentRow}`).font = labelFont;
+                    sheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
+
+                    // BS EN
+                    sheet.getCell(`E${currentRow}`).value = "BS EN:";
+                    sheet.getCell(`E${currentRow}`).font = labelFont;
+                    sheet.mergeCells(`F${currentRow}:G${currentRow}`);
+                    sheet.getCell(`F${currentRow}`).value = formData.bsEn;
+                    sheet.getCell(`F${currentRow}`).border = borderBox;
+                    
+                    // Type
+                    sheet.getCell(`H${currentRow}`).value = "Type:";
+                    sheet.getCell(`H${currentRow}`).font = labelFont;
+                    sheet.getCell(`I${currentRow}`).value = formData.type;
+                    sheet.getCell(`I${currentRow}`).border = borderBox;
+
+                    // Rating
+                    sheet.getCell(`J${currentRow}`).value = "Rating:";
+                    sheet.getCell(`J${currentRow}`).font = labelFont;
+                    sheet.getCell(`K${currentRow}`).value = formData.rating;
+                    sheet.getCell(`K${currentRow}`).border = borderBox;
+                    currentRow += 2;
+
+                    // Conductor
+                    sheet.mergeCells(`B${currentRow}:D${currentRow}`);
+                    sheet.getCell(`B${currentRow}`).value = "Conductor:";
+                    sheet.getCell(`B${currentRow}`).font = labelFont;
+                    sheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
+
+                    sheet.mergeCells(`E${currentRow}:F${currentRow}`);
+                    sheet.getCell(`E${currentRow}`).value = "CSA of Live Conductors:";
+                    sheet.getCell(`E${currentRow}`).font = labelFont;
+                    sheet.getCell(`G${currentRow}`).value = formData.csaLive;
+                    sheet.getCell(`G${currentRow}`).border = borderBox;
+
+                    sheet.mergeCells(`H${currentRow}:I${currentRow}`);
+                    sheet.getCell(`H${currentRow}`).value = "CSA of CPC:";
+                    sheet.getCell(`H${currentRow}`).font = labelFont;
+                    sheet.getCell(`J${currentRow}`).value = formData.csaCpc;
+                    sheet.getCell(`J${currentRow}`).border = borderBox;
+                    currentRow += 2;
+
+                    // Test Results
+                    sheet.mergeCells(`B${currentRow}:D${currentRow}`);
+                    sheet.getCell(`B${currentRow}`).value = "Test Results:";
+                    sheet.getCell(`B${currentRow}`).font = labelFont;
+                    sheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
+
+                    // Ze
+                    sheet.getCell(`E${currentRow}`).value = "Ze / ZDb:";
+                    sheet.getCell(`E${currentRow}`).font = labelFont;
+                    sheet.getCell(`F${currentRow}`).value = formData.ze + " Ω";
+                    sheet.getCell(`F${currentRow}`).border = borderBox;
+
+                    // Zs
+                    sheet.getCell(`G${currentRow}`).value = "Zs:";
+                    sheet.getCell(`G${currentRow}`).font = labelFont;
+                    sheet.getCell(`H${currentRow}`).value = formData.zs + " Ω";
+                    sheet.getCell(`H${currentRow}`).border = borderBox;
+
+                    // R1+R2
+                    sheet.getCell(`I${currentRow}`).value = "R1+R2:";
+                    sheet.getCell(`I${currentRow}`).font = labelFont;
+                    sheet.getCell(`J${currentRow}`).value = formData.r1r2 + " Ω";
+                    sheet.getCell(`J${currentRow}`).border = borderBox;
+                    currentRow += 2;
+
+                    // RCD
+                    sheet.mergeCells(`H${currentRow}:I${currentRow}`);
+                    sheet.getCell(`H${currentRow}`).value = "RCD x1:";
+                    sheet.getCell(`H${currentRow}`).font = labelFont;
+                    sheet.getCell(`H${currentRow}`).alignment = { horizontal: 'right' };
+                    sheet.mergeCells(`J${currentRow}:K${currentRow}`);
+                    sheet.getCell(`J${currentRow}`).value = formData.rcd + " mS";
+                    sheet.getCell(`J${currentRow}`).border = borderBox;
+                    currentRow += 2;
+
+                    // Dates & Info
+                    createField("Date Work Completed:", formData.dateCompleted);
+                    createField("WON for Completed Work:", formData.won);
+
+                    // Signatures
+                    sheet.mergeCells(`B${currentRow}:D${currentRow}`);
+                    sheet.getCell(`B${currentRow}`).value = "Name of Technician:";
+                    sheet.getCell(`B${currentRow}`).font = labelFont;
+                    sheet.getCell(`B${currentRow}`).alignment = { horizontal: 'right' };
+                    sheet.mergeCells(`E${currentRow}:G${currentRow}`);
+                    sheet.getCell(`E${currentRow}`).value = formData.technicianName;
+                    sheet.getCell(`E${currentRow}`).border = borderBox;
+
+                    sheet.mergeCells(`H${currentRow}:I${currentRow}`);
+                    sheet.getCell(`H${currentRow}`).value = "Supervisor Verification:";
+                    sheet.getCell(`H${currentRow}`).font = labelFont;
+                    sheet.mergeCells(`J${currentRow}:K${currentRow}`);
+                    sheet.getCell(`J${currentRow}`).value = formData.supervisorName;
+                    sheet.getCell(`J${currentRow}`).border = borderBox;
+                    currentRow += 4;
+
+                    // Footer
+                    const footerRow = currentRow;
+                    
+                    // Left Part (Columns A-G): "Everyone, every day, home safely."
+                    sheet.mergeCells(`A${footerRow}:G${footerRow+2}`);
+                    const footerLeft = sheet.getCell(`A${footerRow}`);
+                    footerLeft.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors.blue } };
+                    
+                    // RichText for left side to match PDF (White text + Red dot)
+                    footerLeft.value = {
+                        richText: [
+                            { text: "Everyone, every day, home safely", font: { name: 'Arial', size: 14, color: { argb: colors.white } } },
+                            { text: ".", font: { name: 'Arial', size: 14, bold: true, color: { argb: colors.red } } } // Red Dot
+                        ]
+                    };
+                    footerLeft.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+
+                    // Right Part (Columns H-L): "Safety First be the difference"
+                    sheet.mergeCells(`H${footerRow}:L${footerRow+2}`);
+                    const footerRight = sheet.getCell(`H${footerRow}`);
+                    footerRight.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors.blue } };
+                    
+                    // "Safety First" (Grey), "be the" (White), "difference" (Yellow)
+                    footerRight.value = {
+                        richText: [
+                            { text: "Safety First\n", font: { name: 'Arial', size: 18, bold: true, color: { argb: colors.grey } } }, 
+                            { text: "be the ", font: { name: 'Arial', size: 10, color: { argb: colors.white } } },
+                            { text: "difference", font: { name: 'Arial', size: 10, bold: true, color: { argb: colors.yellow } } } 
+                        ]
+                    };
+                    footerRight.alignment = { horizontal: 'right', vertical: 'middle', wrapText: true };
+
+                    // IMAGES - Side by Side
+                    const imageStartRow = 5;
+                    
+                    // BEFORE (Col N - Index 14)
+                    sheet.getCell(`N${imageStartRow}`).value = "BEFORE";
+                    sheet.getCell(`N${imageStartRow}`).font = { name: 'Arial', size: 14, bold: true, color: { argb: colors.blue } };
+                    sheet.getCell(`N${imageStartRow}`).alignment = { horizontal: 'left' };
+
+                    if (formData.image1) {
+                        const imageId1 = workbook.addImage({
+                            base64: formData.image1,
+                            extension: 'png',
+                        });
+                        sheet.addImage(imageId1, {
+                            tl: { col: 13, row: imageStartRow }, // Column N
+                            ext: { width: 280, height: 373 } // 3:4 Portrait Ratio, sized to avoid overlap
+                        });
+                    }
+
+                    // AFTER (Col S - Index 19) - Side by Side
+                    sheet.getCell(`S${imageStartRow}`).value = "AFTER";
+                    sheet.getCell(`S${imageStartRow}`).font = { name: 'Arial', size: 14, bold: true, color: { argb: colors.blue } };
+                    sheet.getCell(`S${imageStartRow}`).alignment = { horizontal: 'left' };
+
+                    if (formData.image2) {
+                        const imageId2 = workbook.addImage({
+                            base64: formData.image2,
+                            extension: 'png',
+                        });
+                        sheet.addImage(imageId2, {
+                            tl: { col: 18, row: imageStartRow }, // Column S
+                            ext: { width: 280, height: 373 } // 3:4 Portrait Ratio, sized to avoid overlap
+                        });
+                    }
+
+                    // Write File
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const fileName = getFileName(formData);
+                    saveAs(new Blob([buffer]), `${fileName}.xlsx`);
+
+                } catch (e) {
+                    console.error("Excel Generation Error", e);
+                    alert("Failed to generate Excel file.");
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (passwordInput === "bksouth") {
+                    setIsAuthenticated(true);
+                    setLoginError(false);
+                } else {
+                    setLoginError(true);
+                }
+            };
+
+            if (!isAuthenticated) {
+                return (
+                    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+                        <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm border-t-4 border-bookerBlue">
+                            <div className="text-center mb-6">
+                                <div className="flex justify-center mb-4">
+                                    <div className="bg-bookerBlue p-3 rounded-full">
+                                        <LockIcon className="w-8 h-8 text-white" />
+                                    </div>
+                                </div>
+                                <h1 className="text-2xl font-bold text-bookerBlue">Restricted Access</h1>
+                                <p className="text-gray-500 text-sm mt-2">Please enter the password to access the EICR Tool.</p>
+                            </div>
+                    
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div>
+                                    <input 
+                                    type="password" 
+                                    className={`w-full p-3 border rounded-lg focus:ring-2 outline-none transition-all ${loginError ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-bookerBlue focus:border-bookerBlue'}`}
+                                    placeholder="Enter Password"
+                                    value={passwordInput}
+                                    onChange={(e) => {
+                                        setPasswordInput(e.target.value);
+                                        setLoginError(false);
+                                    }}
+                                    autoFocus
+                                    />
+                                    {loginError && <p className="text-red-500 text-xs mt-1 ml-1">Incorrect password. Please try again.</p>}
+                                </div>
+                                
+                                <button 
+                                    type="submit"
+                                    className="w-full bg-bookerBlue text-white font-bold py-3 rounded-lg hover:bg-blue-900 transition-colors shadow-md hover:shadow-lg transform active:scale-95 duration-200"
+                                >
+                                    Login
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans text-gray-900">
+                    <div className="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-gray-200 p-6 overflow-y-auto h-screen shadow-lg z-10">
+                        <h2 className="text-xl font-bold mb-6 text-bookerBlue flex items-center gap-2">
+                            <FileTextIcon className="w-6 h-6" />
+                            Form Generator
+                        </h2>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">1. Upload CSV Data</label>
+                            <div className="flex items-center justify-center w-full">
+                                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <UploadIcon className="w-6 h-6 mb-2 text-gray-400" />
+                                        <p className="text-xs text-gray-500">{csvData.length > 0 ? `${csvData.length} records loaded` : "Drag CSV here or click"}</p>
+                                    </div>
+                                    <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="mb-6 relative">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">2. Search Work Order</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <SearchIcon className="w-4 h-4 text-gray-500" />
+                                </div>
+                                <input 
+                                    type="text" 
+                                    className="block w-full p-2 pl-10 pr-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500" 
+                                    placeholder={csvData.length > 0 ? "Search or Select WO #..." : "Upload CSV first..."}
+                                    value={selectedWo}
+                                    onChange={(e) => {
+                                        setSelectedWo(e.target.value);
+                                        setIsDropdownOpen(true);
+                                    }}
+                                    onFocus={() => setIsDropdownOpen(true)}
+                                    onBlur={() => {
+                                        setTimeout(() => setIsDropdownOpen(false), 200);
+                                    }}
+                                    disabled={csvData.length === 0}
+                                />
+                                <div 
+                                    className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                                    onClick={() => {
+                                        if (csvData.length > 0) {
+                                            setIsDropdownOpen(!isDropdownOpen);
+                                        }
+                                    }}
+                                >
+                                    <ChevronDownIcon className="w-4 h-4 text-gray-500 hover:text-gray-700" />
+                                </div>
+                            </div>
+                            
+                            {isDropdownOpen && csvData.length > 0 && (
+                                <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+                                    {filteredWOs.length > 0 ? (
+                                        filteredWOs.map((row, idx) => (
+                                            <div 
+                                                key={idx} 
+                                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm border-b border-gray-50 last:border-0"
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    selectRow(row);
+                                                }}
+                                            >
+                                                <div className="font-bold text-bookerBlue">{row["WO #"]}</div>
+                                                <div className="text-xs text-gray-600 truncate">{row["Site Name"]}</div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-4 py-2 text-sm text-gray-500">No matches found</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <hr className="my-6" />
+
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-gray-800">3. Edit Details</h3>
+                            
+                            <div>
+                                <label className="text-xs text-gray-500">EDN Number</label>
+                                <input className="w-full border p-1 rounded text-sm" value={formData.ednNumber} onChange={e => handleInputChange('ednNumber', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500">DB ID</label>
+                                <input className="w-full border p-1 rounded text-sm" value={formData.dbId} onChange={e => handleInputChange('dbId', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500">Description</label>
+                                <textarea className="w-full border p-1 rounded text-sm" rows={3} value={formData.description} onChange={e => handleInputChange('description', e.target.value)} />
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                                <div><label className="text-xs text-gray-500">BS EN</label><input className="w-full border p-1 text-sm" value={formData.bsEn} onChange={e => handleInputChange('bsEn', e.target.value)} /></div>
+                                <div><label className="text-xs text-gray-500">Type</label><input className="w-full border p-1 text-sm" value={formData.type} onChange={e => handleInputChange('type', e.target.value)} /></div>
+                                <div><label className="text-xs text-gray-500">Rating</label><input className="w-full border p-1 text-sm" value={formData.rating} onChange={e => handleInputChange('rating', e.target.value)} /></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div><label className="text-xs text-gray-500">CSA Live</label><input className="w-full border p-1 text-sm" value={formData.csaLive} onChange={e => handleInputChange('csaLive', e.target.value)} /></div>
+                                <div><label className="text-xs text-gray-500">CSA CPC</label><input className="w-full border p-1 text-sm" value={formData.csaCpc} onChange={e => handleInputChange('csaCpc', e.target.value)} /></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div><label className="text-xs text-gray-500">Ze/ZDb</label><input className="w-full border p-1 text-sm" value={formData.ze} onChange={e => handleInputChange('ze', e.target.value)} /></div>
+                                <div><label className="text-xs text-gray-500">Zs</label><input className="w-full border p-1 text-sm" value={formData.zs} onChange={e => handleInputChange('zs', e.target.value)} /></div>
+                                <div><label className="text-xs text-gray-500">R1+R2</label><input className="w-full border p-1 text-sm" value={formData.r1r2} onChange={e => handleInputChange('r1r2', e.target.value)} /></div>
+                                <div><label className="text-xs text-gray-500">RCD</label><input className="w-full border p-1 text-sm" value={formData.rcd} onChange={e => handleInputChange('rcd', e.target.value)} /></div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-500">Date Completed</label>
+                                <input type="date" className="w-full border p-1 text-sm" value={formData.dateCompleted} onChange={e => handleInputChange('dateCompleted', e.target.value)} />
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-500">Technician</label>
+                                <input className="w-full border p-1 rounded text-sm" value={formData.technicianName} onChange={e => handleInputChange('technicianName', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500">Supervisor</label>
+                                <input className="w-full border p-1 rounded text-sm" value={formData.supervisorName} onChange={e => handleInputChange('supervisorName', e.target.value)} />
+                            </div>
+
+                            <div className="border-t pt-4">
+                                <h4 className="font-bold text-sm mb-2 flex items-center gap-2"><ImageIcon className="w-4 h-4"/> Evidence Images</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="text-xs block mb-1">Image 1</label>
+                                        <input type="file" accept="image/*" className="text-xs w-full" onChange={(e) => handleImageUpload('image1', e)} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs block mb-1">Image 2</label>
+                                        <input type="file" accept="image/*" className="text-xs w-full" onChange={(e) => handleImageUpload('image2', e)} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="mt-8 pb-8 space-y-3">
+                            <button 
+                                onClick={generatePDF}
+                                disabled={isGenerating}
+                                className="w-full flex items-center justify-center gap-2 bg-bookerBlue text-white p-3 rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-50"
+                            >
+                                {isGenerating ? 'Generating...' : <><FileDownIcon className="w-5 h-5" /> Download PDF</>}
+                            </button>
+                            <button 
+                                onClick={generateExcel}
+                                disabled={isGenerating}
+                                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                            >
+                                {isGenerating ? 'Generating...' : <><SheetIcon className="w-5 h-5" /> Download Excel</>}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex-grow bg-gray-200 overflow-auto flex justify-center p-8">
+                        <FormPreview ref={printRef} data={formData} />
+                    </div>
+                </div>
+            );
+        };
+
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+            const root = ReactDOM.createRoot(rootElement);
+            root.render(<App />);
+        }
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
